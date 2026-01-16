@@ -46,7 +46,7 @@ export default {
 
         if (allowed) {
           // increment counter
-          let current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+          let current = parseInt(await env.COUNTERS.get(fullKey) || "1");
           const newValue = current + 1;
 
           await env.COUNTERS.put(fullKey, newValue.toString());
