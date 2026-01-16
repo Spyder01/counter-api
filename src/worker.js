@@ -1,65 +1,96 @@
+// CONFIG — how many hours until the same IP can increment again?
+const COOLDOWN_HOURS = 6;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const parts = url.pathname.split("/").filter(Boolean);
 
     if (parts.length < 2) {
-      return new Response("Usage: /hit/<ns>/<key> OR /get/<ns>/<key> OR /set/<ns>/<key>?value=123", { status: 400 });
+      return new Response("Use: /hit/<ns>/<key> or /get/<ns>/<key>", { status: 400 });
     }
 
-    const action = parts[0]; // hit, get, set
-    const namespace = parts[1];
+    const action = parts[0];
+    const ns = parts[1];
     const key = parts[2] ?? "default";
-    const fullKey = `${namespace}:${key}`;
+    const fullKey = `${ns}:${key}`;
+
+    // Cloudflare gives real IP
+    const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+    const ipKey = `ip:${ns}:${key}:${ip}`;
 
     switch (action) {
 
-      // --------------------------------------
-      // HIT — increment value
-      // --------------------------------------
+      // -------------------------------------------------------
+      // HIT — increment if cooldown expired
+      // -------------------------------------------------------
       case "hit": {
-        let current = await env.COUNTERS.get(fullKey);
-        if (!current) current = 0;
-        current = parseInt(current);
+        const now = Date.now();
 
-        const newValue = current + 1;
-        await env.COUNTERS.put(fullKey, newValue.toString());
+        // Last visit timestamp by this IP
+        const lastVisit = await env.COUNTERS.get(ipKey);
 
-        return json({ value: newValue });
-      }
+        let allowed = false;
 
-      // --------------------------------------
-      // GET — read value
-      // --------------------------------------
-      case "get": {
-        let current = await env.COUNTERS.get(fullKey);
-        if (!current) current = 0;
+        if (!lastVisit) {
+          // First ever visit: allowed
+          allowed = true;
+        } else {
+          const last = parseInt(lastVisit);
+          const hoursPassed = (now - last) / (1000 * 60 * 60);
 
-        return json({ value: parseInt(current) });
-      }
-
-      // --------------------------------------
-      // SET — set value manually
-      // --------------------------------------
-      case "set": {
-        const newValue = url.searchParams.get("value");
-
-        if (newValue === null || isNaN(parseInt(newValue))) {
-          return new Response("Missing or invalid ?value= parameter", { status: 400 });
+          if (hoursPassed >= COOLDOWN_HOURS) {
+            allowed = true;
+          }
         }
 
-        await env.COUNTERS.put(fullKey, newValue.toString());
+        if (allowed) {
+          // increment counter
+          let current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+          const newValue = current + 1;
 
-        return json({ value: parseInt(newValue) });
+          await env.COUNTERS.put(fullKey, newValue.toString());
+          await env.COUNTERS.put(ipKey, now.toString());
+
+          return json({ value: newValue, incremented: true });
+        }
+
+        // Not allowed — return current value
+        const current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+        return json({
+          value: current,
+          incremented: false,
+          retry_after_hours: COOLDOWN_HOURS
+        });
+      }
+
+      // -------------------------------------------------------
+      // GET — read value without increment
+      // -------------------------------------------------------
+      case "get": {
+        const current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+        return json({ value: current });
+      }
+
+      // -------------------------------------------------------
+      // SET — manually set value
+      // -------------------------------------------------------
+      case "set": {
+        const val = url.searchParams.get("value");
+        if (!val || isNaN(parseInt(val))) {
+          return new Response("Missing ?value=number", { status: 400 });
+        }
+        await env.COUNTERS.put(fullKey, val);
+        return json({ value: parseInt(val) });
       }
 
       default:
-        return new Response("Unknown action. Use /hit /get /set", { status: 400 });
+        return new Response("Unknown action", { status: 400 });
     }
   }
 };
 
-// Helper: JSON response shortcut
+// Helper
 function json(obj) {
   return new Response(JSON.stringify(obj), {
     headers: { "Content-Type": "application/json" }
