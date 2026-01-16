@@ -1,0 +1,10 @@
+name = "counter"
+main = "src/worker.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+# optional environment vars
+
+[[kv_namespaces]]
+binding = "COUNTERS"
+id = "da3e4064cd1a4a97b22e76a8e05e048d"
