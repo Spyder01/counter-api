@@ -68,7 +68,7 @@ export default {
       // GET — read value without increment
       // -------------------------------------------------------
       case "get": {
-        const current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+        const current = parseInt(await env.COUNTERS.get(fullKey) || "1");
         return json({ value: current });
       }
 
