@@ -1,5 +1,5 @@
 // CONFIG — how many hours until the same IP can increment again?
-const COOLDOWN_HOURS = 6;
+const COOLDOWN_HOURS = 2;
 
 export default {
   async fetch(request, env) {
