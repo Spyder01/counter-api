@@ -1,6 +1,29 @@
 // CONFIG — how many hours until the same IP can increment again?
 const COOLDOWN_HOURS = 2;
 
+
+function json(obj) {
+  return new Response(JSON.stringify(obj), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    }
+  });
+}
+
+// Handle OPTIONS (CORS preflight)
+function cors() {
+  return new Response(null, {
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    }
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -89,10 +112,3 @@ export default {
     }
   }
 };
-
-// Helper
-function json(obj) {
-  return new Response(JSON.stringify(obj), {
-    headers: { "Content-Type": "application/json" }
-  });
-}
