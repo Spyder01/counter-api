@@ -56,7 +56,7 @@ export default {
         }
 
         // Not allowed — return current value
-        const current = parseInt(await env.COUNTERS.get(fullKey) || "0");
+        const current = parseInt(await env.COUNTERS.get(fullKey) || "1");
         return json({
           value: current,
           incremented: false,
